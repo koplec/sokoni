@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/koplec/sokoni/internal/model"
 )
 
 // テスト用に一時ディレクトリを作成して、ダミーのpdfを配置
@@ -45,5 +47,29 @@ func TestScanPDFs(t *testing.T) {
 
 	if files[0].ModTime.After(time.Now()) {
 		t.Errorf("mod time is in the future: %v", files[0].ModTime)
+	}
+}
+
+func TestScanWithPDFs(t *testing.T) {
+	dir := setupTestDir(t)
+
+	var called []string
+
+	handle := func(file model.FileInfo) error {
+		called = append(called, file.Name)
+		return nil
+	}
+
+	err := ScanWith(dir, handle)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(called) != 1 {
+		t.Errorf("expected 1 file to be handled, got %d", len(called))
+	}
+
+	if called[0] != "sample1.pdf" {
+		t.Errorf("unexpected file handled: %s", called[0])
 	}
 }

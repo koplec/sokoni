@@ -1,0 +1,18 @@
+version: '3.8'
+
+
+services:
+  db:
+    image: postgres:17
+    container_name: sokoni_db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: sokoni
+      POSTGRES_USER: sokoni
+      POSTGRES_PASSWORD: sokoni
+    volumes:
+      - sokoni_pgdata:/var/lib/postgresql/data
+
+volumes:
+  sokoni_pgdata:

@@ -44,3 +44,37 @@ func Scan(root string) ([]model.FileInfo, error) {
 
 	return files, nil
 }
+
+func ScanWith(root string, handle func(model.FileInfo) error) error {
+	return filepath.WalkDir(root, func(path string, f os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// ここでnilを返しても再帰は続く
+		if f.IsDir() {
+			return nil
+		}
+
+		// .pdfのみ対象
+		if strings.HasSuffix(strings.ToLower(f.Name()), ".pdf") {
+			info, err := f.Info()
+			if err != nil {
+				return err
+			}
+
+			file := model.FileInfo{
+				Path:    path,
+				Name:    f.Name(),
+				Size:    info.Size(),
+				ModTime: info.ModTime(),
+			}
+
+			if err := handle(file); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+}
