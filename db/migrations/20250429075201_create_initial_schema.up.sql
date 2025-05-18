@@ -8,8 +8,8 @@ CREATE TABLE connections (
     username TEXT,               -- SMBなら使う（Linuxマウント用）
     password TEXT,               -- SMBなら使う
     options TEXT,                -- fstabに追加したいマウントオプションをここに保存してもいい
-    created_at TIMESTAMP NOT NULL DEFAULT now(),
-    updated_at TIMESTAMP NOT NULL DEFAULT now()
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
 CREATE TABLE files (
@@ -18,9 +18,9 @@ CREATE TABLE files (
     path TEXT NOT NULL UNIQUE,
     name TEXT NOT NULL,
     size BIGINT,
-    mod_time TIMESTAMP,
-    created_at TIMESTAMP NOT NULL DEFAULT now(),
-    updated_at TIMESTAMP NOT NULL DEFAULT now()
+    mod_time TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
 COMMIT;
