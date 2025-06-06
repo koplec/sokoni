@@ -55,7 +55,7 @@ func NewConnectionScanner(conn *pgx.Conn) ConnectionScanner {
 			totalCount++
 
 			if len(batch) >= batchSize {
-				if err := insertFileBatch(ctx, conn, connectionID, batch); err != nil {
+				if err := upsertFileBatch(ctx, conn, connectionID, batch); err != nil {
 					return err
 				}
 				batch = batch[:0] // clear slice
@@ -68,9 +68,9 @@ func NewConnectionScanner(conn *pgx.Conn) ConnectionScanner {
 			return fmt.Errorf("failed to scan files: %w", err)
 		}
 
-		// Insert remaining files in batch
+		// Upsert remaining files in batch
 		if len(batch) > 0 {
-			if err := insertFileBatch(ctx, conn, connectionID, batch); err != nil {
+			if err := upsertFileBatch(ctx, conn, connectionID, batch); err != nil {
 				return err
 			}
 		}
@@ -80,7 +80,9 @@ func NewConnectionScanner(conn *pgx.Conn) ConnectionScanner {
 	}
 }
 
-func insertFileBatch(ctx context.Context, conn *pgx.Conn, connectionID int, files []model.FileInfo) error {
+// upsertFileBatch は複数のファイル情報をバッチでデータベースにUPSERT（INSERT or UPDATE）する。
+// 既存ファイルの場合はサイズと更新日時を更新し、新規ファイルの場合は挿入する。
+func upsertFileBatch(ctx context.Context, conn *pgx.Conn, connectionID int, files []model.FileInfo) error {
 	tx, err := conn.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
