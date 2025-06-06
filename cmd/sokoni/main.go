@@ -19,6 +19,6 @@ func main() {
 
 	fmt.Printf("Found %d PDF files:\n", len(files))
 	for _, f := range files {
-		fmt.Printf("- %s (%d bytes)=\n", f.Path, f.Size)
+		fmt.Printf("- %s (%d bytes)\n", f.Path, f.Size)
 	}
 }
