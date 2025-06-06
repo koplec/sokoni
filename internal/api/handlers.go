@@ -133,7 +133,7 @@ func (a *API) GetConnection(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(connection); err != nil {
+	if err := json.NewEncoder(w).Encode(connection.ToResponse()); err != nil {
 		log.Printf("Error encoding response: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 	}
