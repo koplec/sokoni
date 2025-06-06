@@ -1,0 +1,143 @@
+-- サンプルデータ挿入用SQL
+-- 実行方法: psql -h localhost -U sokoni -d sokoni -f db/sample_data.sql
+
+-- 既存のサンプルデータを削除（必要に応じて）
+-- DELETE FROM files WHERE connection_id IN (SELECT id FROM connections WHERE user_id = -1);
+-- DELETE FROM connections WHERE user_id = -1;
+
+/*
+SMB/CIFSオプション解説:
+
+基本オプション:
+- domain=DOMAIN_NAME  : 認証に使用するWindowsドメイン名
+- vers=X.X           : SMBプロトコルバージョン (1.0, 2.0, 2.1, 3.0, 3.1.1)
+- sec=SECURITY_TYPE  : セキュリティ/認証方式
+
+セキュリティオプション:
+- sec=ntlm          : NTLM認証（古いWindowsサーバー用）
+- sec=ntlmv2        : NTLMv2認証（推奨）
+- sec=ntlmssp       : NTLM Security Support Provider
+- sec=krb5          : Kerberos認証（最も安全）
+
+アクセス制御:
+- ro                : 読み取り専用でマウント
+- rw                : 読み書き可能（デフォルト）
+- uid=USER_ID       : ファイル所有者UID
+- gid=GROUP_ID      : ファイル所有者GID
+
+パフォーマンス:
+- cache=none        : キャッシュ無効化（最新データ保証）
+- cache=strict      : 厳密なキャッシュ制御
+- cache=loose       : 緩いキャッシュ制御（パフォーマンス重視）
+
+推奨バージョン:
+- SMB 3.0以上: セキュリティと性能のバランスが良い
+- SMB 2.1以上: 古いシステムとの互換性を維持
+- SMB 1.0: 非推奨（セキュリティリスクあり）
+*/
+
+-- テスト用のconnections
+INSERT INTO connections (
+    name, 
+    base_path, 
+    remote_path, 
+    username, 
+    password, 
+    options, 
+    user_id, 
+    scan_interval, 
+    auto_scan
+) VALUES 
+-- 1. 社内ファイルサーバー（営業部共有フォルダ）
+(
+    '営業部ファイルサーバー',
+    '/mnt/sales-share',
+    '//fileserver.company.local/sales/documents',
+    'sokoni_user',
+    'password123',
+    'domain=COMPANY,vers=3.0',  -- 社内ドメイン認証、SMB3.0（標準的な設定）
+    -1,
+    86400,  -- 24時間間隔
+    true
+),
+
+-- 2. 経理部専用サーバー
+(
+    '経理部サーバー',
+    '/mnt/accounting',
+    '//accounting-srv.company.local/shared/pdf-archive',
+    'accounting_ro',
+    'acc_readonly_pass',
+    'domain=COMPANY,vers=3.0,ro',  -- 読み取り専用アクセス（ro）でセキュリティ強化
+    -1,
+    604800, -- 1週間間隔
+    true
+),
+
+-- 3. プロジェクト管理用NAS
+(
+    'プロジェクト管理NAS',
+    '/mnt/projects',
+    '//nas01.company.local/projects/contracts',
+    'project_user',
+    'proj_2024_secure',
+    'domain=COMPANY,vers=3.0',  -- 標準的なSMB3.0設定（読み書き可能）
+    -1,
+    43200,  -- 12時間間隔
+    true
+),
+
+-- 4. 外部クライアント用共有（VPN経由）
+(
+    'クライアントA共有',
+    '/mnt/client-a',
+    '//vpn-share.clienta.com/documents/invoices',
+    'sokoni_external',
+    'ext_secure_2024',
+    'vers=2.1,sec=ntlmssp',  -- 古いシステム互換性でSMB2.1、NTLMSSP認証
+    -1,
+    1209600, -- 2週間間隔
+    false    -- 手動スキャンのみ
+),
+
+-- 5. 本社アーカイブサーバー
+(
+    '本社アーカイブ',
+    '/mnt/hq-archive',
+    '//archive.hq.company.local/legal-docs/pdf',
+    'archive_reader',
+    'archive_readonly_2024',
+    'domain=HQ,vers=3.0,ro,cache=none',  -- 別ドメイン、読み取り専用、キャッシュ無効（最新データ保証）
+    -1,
+    2592000, -- 1ヶ月間隔
+    true
+),
+
+-- 6. ローカルテスト用（開発・テスト環境）
+(
+    'ローカルテスト',
+    '/tmp/test-pdfs',
+    '/tmp/test-pdfs',  -- SMBではなくローカルパス（SMBオプション不要）
+    NULL,              -- ローカルアクセスのため認証情報不要
+    NULL,
+    NULL,              -- ローカルファイルシステムのためオプション不要
+    -1,
+    300,    -- 5分間隔（テスト用）
+    false   -- 手動テスト用
+);
+
+-- データ確認用クエリ（コメントアウト）
+-- SELECT 
+--     id,
+--     name,
+--     remote_path,
+--     CASE 
+--         WHEN username IS NOT NULL THEN '***認証あり***'
+--         ELSE 'anonymous'
+--     END as auth_status,
+--     scan_interval / 3600 as scan_interval_hours,
+--     auto_scan,
+--     created_at
+-- FROM connections 
+-- WHERE user_id = -1
+-- ORDER BY id;

@@ -39,14 +39,50 @@ go build ./cmd/sokoni
 
 # ファイルスキャン実行
 ./sokoni scan
+
+# 特定のconnectionをスキャン
+./sokoni scan <connection_id>
+```
+
+## テストデータのセットアップ
+
+### 1. サンプルConnectionの挿入
+
+```bash
+psql -h localhost -U sokoni -d sokoni -f db/sample_data.sql
+```
+
+### 2. テスト用PDFファイルの作成
+
+```bash
+# pandocがインストールされている場合（推奨）
+sudo apt-get install pandoc texlive-latex-base  # Ubuntu/Debian
+# brew install pandoc basictex  # macOS
+
+# テストPDFファイル作成
+./scripts/create_test_pdfs.sh
+```
+
+### 3. ローカルテスト用スキャン実行
+
+```bash
+# ローカルテスト用connection（ID: 6）でスキャン
+./sokoni scan 6
 ```
 
 ## API使用方法
 
+### Connection一覧取得
+
+```bash
+curl "http://localhost:8080/connections"
+```
+
 ### ファイル名検索
 
 ```bash
-curl "http://localhost:8080/search?q=sample"
+curl "http://localhost:8080/search?q=invoice"
+curl "http://localhost:8080/search?q=contract"
 ```
 
 ### ヘルスチェック
