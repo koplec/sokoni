@@ -60,7 +60,7 @@ func TestScanWithPDFs(t *testing.T) {
 		return nil
 	}
 
-	err := ScanWith(dir, handle)
+	err := scanWith(dir, handle)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

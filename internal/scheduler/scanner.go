@@ -64,7 +64,7 @@ func (s *Scanner) scanDueConnections() {
 	log.Printf("Found %d connections due for scanning", len(connections))
 
 	for _, conn := range connections {
-		log.Printf("Starting scan for connection: %s (ID: %d, Path: %s)", conn.Name, conn.ID, conn.BasePath)
+		log.Printf("Starting scan for connection: %s (ID: %d, Remote: %s)", conn.Name, conn.ID, conn.RemotePath)
 		
 		fileCount := 0
 		err := s.scanConnection(conn, &fileCount)
@@ -82,16 +82,11 @@ func (s *Scanner) scanDueConnections() {
 	}
 }
 
-type Connection struct {
-	ID       int
-	Name     string
-	BasePath string
-	UserID   int
-}
 
-func (s *Scanner) getDueConnections() ([]Connection, error) {
+func (s *Scanner) getDueConnections() ([]*db.Connection, error) {
 	query := `
-		SELECT id, name, base_path, user_id 
+		SELECT id, name, base_path, remote_path, username, password, options,
+		       user_id, last_scan, scan_interval, auto_scan, created_at, updated_at
 		FROM connections 
 		WHERE auto_scan = true 
 		AND (last_scan IS NULL OR last_scan + (scan_interval || ' seconds')::interval < now())
@@ -103,21 +98,24 @@ func (s *Scanner) getDueConnections() ([]Connection, error) {
 	}
 	defer rows.Close()
 
-	var connections []Connection
+	var connections []*db.Connection
 	for rows.Next() {
-		var conn Connection
-		err := rows.Scan(&conn.ID, &conn.Name, &conn.BasePath, &conn.UserID)
+		var conn db.Connection
+		err := rows.Scan(
+			&conn.ID, &conn.Name, &conn.BasePath, &conn.RemotePath, &conn.Username, &conn.Password, &conn.Options,
+			&conn.UserID, &conn.LastScan, &conn.ScanInterval, &conn.AutoScan, &conn.CreatedAt, &conn.UpdatedAt,
+		)
 		if err != nil {
 			return nil, err
 		}
-		connections = append(connections, conn)
+		connections = append(connections, &conn)
 	}
 
 	return connections, rows.Err()
 }
 
-func (s *Scanner) scanConnection(conn Connection, fileCount *int) error {
-	return collector.ScanWith(conn.BasePath, func(fileInfo model.FileInfo) error {
+func (s *Scanner) scanConnection(conn *db.Connection, fileCount *int) error {
+	return collector.ScanConnectionWith(conn, func(fileInfo model.FileInfo) error {
 		*fileCount++
 		return db.InsertFile(s.ctx, s.conn, conn.ID, fileInfo)
 	})
