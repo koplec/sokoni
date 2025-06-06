@@ -9,11 +9,14 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/joho/godotenv"
 	"github.com/koplec/sokoni/internal/api"
+	"github.com/koplec/sokoni/internal/cmd"
 	"github.com/koplec/sokoni/internal/collector"
 	"github.com/koplec/sokoni/internal/db"
 	"github.com/koplec/sokoni/internal/scheduler"
+	"github.com/koplec/sokoni/internal/service"
 )
 
 func main() {
@@ -25,7 +28,13 @@ func main() {
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
 		case "scan":
-			runScan()
+			if len(os.Args) > 2 {
+				withDB(func(conn *pgx.Conn) {
+					cmd.ScanConnection(os.Args[2], service.NewScanConnectionFunc(conn))
+				})
+			} else {
+				runScan()
+			}
 		case "scheduler":
 			runScheduler()
 		case "api":
@@ -36,6 +45,16 @@ func main() {
 	} else {
 		runAPI() // デフォルトはAPI
 	}
+}
+
+func withDB(fn func(*pgx.Conn)) {
+	ctx := context.Background()
+	conn, err := db.Connect(ctx)
+	if err != nil {
+		log.Fatalf("failed to connect to database: %v", err)
+	}
+	defer conn.Close(ctx)
+	fn(conn)
 }
 
 func runAPI() {
@@ -49,6 +68,15 @@ func runAPI() {
 	apiHandler := api.NewAPI(conn)
 
 	http.HandleFunc("/search", apiHandler.SearchFiles)
+	http.HandleFunc("/connections", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/connections" && r.Method == "GET" {
+			apiHandler.GetConnections(w, r)
+		} else if r.URL.Path == "/connections" && r.Method == "POST" {
+			apiHandler.CreateConnection(w, r)
+		} else {
+			apiHandler.GetConnection(w, r)
+		}
+	})
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
@@ -103,15 +131,18 @@ func runScan() {
 	}
 }
 
+
 func showUsage() {
 	fmt.Println("Usage: sokoni [command]")
 	fmt.Println("Commands:")
-	fmt.Println("  api       Start REST API server (default)")
-	fmt.Println("  scheduler Start background file scanner")
-	fmt.Println("  scan      Run one-time file scan")
+	fmt.Println("  api              Start REST API server (default)")
+	fmt.Println("  scheduler        Start background file scanner")
+	fmt.Println("  scan             Run one-time file scan")
+	fmt.Println("  scan <conn_id>   Scan specific connection")
 	fmt.Println()
 	fmt.Println("Examples:")
 	fmt.Println("  ./sokoni api       # Start API on port 8080")
 	fmt.Println("  ./sokoni scheduler # Start background scanner")
 	fmt.Println("  ./sokoni scan      # Manual scan of /mnt/share")
+	fmt.Println("  ./sokoni scan 1    # Scan connection ID 1")
 }
