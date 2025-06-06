@@ -49,6 +49,13 @@ go build ./cmd/sokoni
 ### 1. サンプルConnectionの挿入
 
 ```bash
+# テンプレートから独自のサンプルデータを作成
+cp db/sample_data.sql.sample db/sample_data.sql
+
+# 環境に合わせてconnection情報を編集（SMBサーバーアドレス、認証情報など）
+# vim db/sample_data.sql
+
+# データベースに挿入
 psql -h localhost -U sokoni -d sokoni -f db/sample_data.sql
 ```
 
