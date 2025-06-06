@@ -12,6 +12,17 @@ import (
 
 type ScanConnectionFunc func(ctx context.Context, connectionID int, userID int) error
 
+// NewScanConnectionFunc は指定されたデータベース接続を使用して、
+// connectionをスキャンする関数を作成する。
+// 
+// この関数は以下の処理を行う：
+// 1. connection情報をDBから取得
+// 2. SMB/CIFS または ローカルファイルシステムから PDFファイルをスキャン
+// 3. 見つかったファイルを100件ずつバッチでDBに保存
+// 4. 進捗状況をログ出力
+//
+// - conn: PostgreSQL データベース接続
+// 戻り値: ScanConnectionFunc (connectionID, userIDを受け取りスキャンを実行する関数)
 func NewScanConnectionFunc(conn *pgx.Conn) ScanConnectionFunc {
 	return func(ctx context.Context, connectionID int, userID int) error {
 		connection, err := db.GetConnectionByID(ctx, conn, connectionID, userID)
