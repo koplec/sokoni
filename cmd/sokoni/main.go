@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 
 	"github.com/jackc/pgx/v5"
@@ -29,8 +30,12 @@ func main() {
 		switch os.Args[1] {
 		case "scan":
 			if len(os.Args) > 2 {
+				connectionID, err := strconv.Atoi(os.Args[2])
+				if err != nil {
+					log.Fatalf("invalid connection ID: %v", err)
+				}
 				withDB(func(conn *pgx.Conn) {
-					cmd.ScanConnection(os.Args[2], service.NewScanConnectionFunc(conn))
+					cmd.ScanConnection(connectionID, service.NewScanConnectionFunc(conn))
 				})
 			} else {
 				runScan()
