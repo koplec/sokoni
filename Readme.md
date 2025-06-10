@@ -77,6 +77,47 @@ sudo apt-get install pandoc texlive-latex-base  # Ubuntu/Debian
 ./sokoni scan 6
 ```
 
+## テスト実行
+
+### 全テスト実行
+
+```bash
+go test ./...
+```
+
+### 特定テストの実行
+
+```bash
+# 特定のテスト関数を実行
+go test -run TestScanConnectionSMB ./internal/service
+
+# 詳細出力
+go test -v ./internal/service
+```
+
+### NAS接続テスト
+
+`ScanConnection` の挙動を確認する統合テストを実行するには、まず `test.env.sample`
+を `test.env` としてコピーし、必要に応じて NAS(SMB) 接続用の環境変数を設定します。
+
+```bash
+cp test.env.sample test.env
+# NAS 環境に合わせて設定 (任意)
+export SOKONI_TEST_SMB_PATH=//nas/share
+export SOKONI_TEST_SMB_USER=myuser       # 任意
+export SOKONI_TEST_SMB_PASS=mypass       # 任意
+export SOKONI_TEST_SMB_OPTIONS=vers=3.0  # 任意
+SOKONI_TEST_SMB_EXPECTED_PDF_COUNT=1
+など
+
+# SMBテストのみ実行
+export $(cat test.env | xargs) && go test -run TestScanConnectionSMB -v ./internal/service
+```
+
+`SOKONI_TEST_SMB_PATH` が未設定の場合、SMB を利用したテストはスキップされます。
+
+**注意**: `export $(cat test.env | xargs)` により `test.env` ファイル内の環境変数を現在のシェルセッションに読み込むことができます。
+
 ## API使用方法
 
 ### Connection一覧取得

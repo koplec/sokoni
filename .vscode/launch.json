@@ -1,0 +1,17 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Test: TestScanConnectionSMB",
+            "type": "go",
+            "request": "launch",
+            "mode": "test",
+            "program": "${workspaceFolder}/internal/service",
+            "args": [
+                "-test.run",
+                "TestScanConnectionSMB"
+            ],
+            "envFile": "${workspaceFolder}/test.env"
+        }
+    ]
+}

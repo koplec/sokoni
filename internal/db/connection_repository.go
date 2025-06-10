@@ -8,19 +8,19 @@ import (
 )
 
 type Connection struct {
-	ID           int       `json:"id"`
-	Name         string    `json:"name"`
-	BasePath     string    `json:"base_path"`
-	RemotePath   string    `json:"remote_path"`
-	Username     *string   `json:"username,omitempty"`
-	Password     *string   `json:"password,omitempty"`
-	Options      *string   `json:"options,omitempty"`
-	UserID       int       `json:"user_id"`
+	ID           int        `json:"id"`
+	Name         string     `json:"name"`
+	BasePath     string     `json:"base_path"`
+	RemotePath   string     `json:"remote_path"`
+	Username     *string    `json:"username,omitempty"`
+	Password     *string    `json:"password,omitempty"`
+	Options      *string    `json:"options,omitempty"`
+	UserID       int        `json:"user_id"`
 	LastScan     *time.Time `json:"last_scan,omitempty"`
-	ScanInterval int       `json:"scan_interval"`
-	AutoScan     bool      `json:"auto_scan"`
-	CreatedAt    time.Time `json:"-"` // 監査用カラム - APIレスポンスに含めない
-	UpdatedAt    time.Time `json:"-"` // 監査用カラム - APIレスポンスに含めない
+	ScanInterval int        `json:"scan_interval"`
+	AutoScan     bool       `json:"auto_scan"`
+	CreatedAt    time.Time  `json:"-"` // 監査用カラム - APIレスポンスに含めない
+	UpdatedAt    time.Time  `json:"-"` // 監査用カラム - APIレスポンスに含めない
 }
 
 // APIレスポンス用の構造体（監査カラムを除外）
@@ -97,16 +97,16 @@ func GetConnectionsByUserID(ctx context.Context, conn *pgx.Conn, userID int) ([]
 	return connections, rows.Err()
 }
 
-func GetConnectionByID(ctx context.Context, conn *pgx.Conn, id int, userID int) (*Connection, error) {
+func GetConnectionByID(ctx context.Context, conn *pgx.Conn, id int) (*Connection, error) {
 	query := `
 		SELECT id, name, base_path, remote_path, username, password, options,
 		       user_id, last_scan, scan_interval, auto_scan, created_at, updated_at
 		FROM connections
-		WHERE id = $1 AND user_id = $2
+		WHERE id = $1
 	`
 
 	var c Connection
-	err := conn.QueryRow(ctx, query, id, userID).Scan(
+	err := conn.QueryRow(ctx, query, id).Scan(
 		&c.ID, &c.Name, &c.BasePath, &c.RemotePath, &c.Username, &c.Password, &c.Options,
 		&c.UserID, &c.LastScan, &c.ScanInterval, &c.AutoScan, &c.CreatedAt, &c.UpdatedAt,
 	)

@@ -11,24 +11,24 @@ import (
 )
 
 // ConnectionScanner は指定されたconnectionをスキャンしてPDFファイルをデータベースに保存する関数型。
-// 
+//
 // この関数型は以下の副作用を持つ：
 // - データベースへのファイル情報の書き込み
 // - 標準出力への進捗表示
 // - ネットワークアクセス（SMB/CIFS接続）またはローカルファイルシステムアクセス
-// 
+//
 // パラメータ：
 // - ctx: コンテキスト（キャンセル処理用）
 // - connectionID: スキャン対象のconnection ID
 // - userID: 実行ユーザーのID（認可チェック用）
-// 
+//
 // 戻り値：
 // - error: スキャン処理中にエラーが発生した場合
 type ConnectionScanner func(ctx context.Context, connectionID int, userID int) error
 
 // NewConnectionScanner は指定されたデータベース接続を使用して、
 // connectionをスキャンするスキャナーを作成する。
-// 
+//
 // スキャナーは以下の処理を行う：
 // 1. connection情報をDBから取得
 // 2. SMB/CIFS または ローカルファイルシステムから PDFファイルをスキャン
@@ -39,7 +39,7 @@ type ConnectionScanner func(ctx context.Context, connectionID int, userID int) e
 // 戻り値: ConnectionScanner (connectionID, userIDを受け取りスキャンを実行するスキャナー)
 func NewConnectionScanner(conn *pgx.Conn) ConnectionScanner {
 	return func(ctx context.Context, connectionID int, userID int) error {
-		connection, err := db.GetConnectionByID(ctx, conn, connectionID, userID)
+		connection, err := db.GetConnectionByID(ctx, conn, connectionID)
 		if err != nil {
 			return fmt.Errorf("failed to get connection: %w", err)
 		}

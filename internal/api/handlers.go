@@ -119,9 +119,9 @@ func (a *API) GetConnection(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// TODO: 認証実装後にユーザーIDを取得
-	userID := -1 // 仮のユーザーID（開発用）
+	// userID := -1 // 仮のユーザーID（開発用）
 
-	connection, err := db.GetConnectionByID(context.Background(), a.conn, id, userID)
+	connection, err := db.GetConnectionByID(context.Background(), a.conn, id)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			http.Error(w, "Connection not found", http.StatusNotFound)
