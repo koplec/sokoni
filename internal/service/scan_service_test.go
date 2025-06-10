@@ -83,14 +83,23 @@ func stringPtr(s string) *string {
 
 // TestScanConnectionSMB verifies scanning using an SMB path if environment variables are provided.
 func TestScanConnectionSMB(t *testing.T) {
-	err := godotenv.Load("../../test.env")
-	if err != nil {
-		t.Logf("Warning: Could not load test.env: %v", err)
+	// Check DATABASE_URL is set (required for testConn)
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		t.Fatal("DATABASE_URL environment variable is required for SMB test")
 	}
-	
+
+	// Optional SMB credentials - warn if not set but don't fail
+	// Check required environment variables
 	smbPath := os.Getenv("SOKONI_TEST_SMB_PATH")
 	if smbPath == "" {
 		t.Skip("SOKONI_TEST_SMB_PATH not set")
+	}
+
+	smbUser := os.Getenv("SOKONI_TEST_SMB_USER")
+	smbPass := os.Getenv("SOKONI_TEST_SMB_PASS")
+	if smbUser == "" || smbPass == "" {
+		t.Logf("Warning: SOKONI_TEST_SMB_USER or SOKONI_TEST_SMB_PASS not set - SMB authentication may fail")
 	}
 
 	conn := testConn(t)
@@ -102,7 +111,7 @@ func TestScanConnectionSMB(t *testing.T) {
 
 	// Create test user
 	var userID int
-	err = conn.QueryRow(ctx, `
+	err := conn.QueryRow(ctx, `
 		INSERT INTO users (username, email, password_hash) 
 		VALUES ('test-user', 'test@example.com', 'dummy-hash') 
 		RETURNING id
