@@ -134,6 +134,13 @@ func TestScanConnectionSMB(t *testing.T) {
 		t.Fatalf("failed to insert connection: %v", err)
 	}
 
+	// Register cleanup immediately after data creation
+	t.Cleanup(func() {
+		conn.Exec(ctx, "DELETE FROM files WHERE connection_id=$1", connectionID)
+		conn.Exec(ctx, "DELETE FROM connections WHERE id=$1", connectionID)
+		conn.Exec(ctx, "DELETE FROM users WHERE id=$1", userID)
+	})
+
 	// Verify data insertion
 	var userCount, connectionCount int
 	conn.QueryRow(ctx, "SELECT COUNT(*) FROM users WHERE id=$1", userID).Scan(&userCount)
@@ -141,12 +148,6 @@ func TestScanConnectionSMB(t *testing.T) {
 	if userCount != 1 || connectionCount != 1 {
 		t.Fatalf("expected 1 user and 1 connection, got %d users and %d connections", userCount, connectionCount)
 	}
-
-	t.Cleanup(func() {
-		conn.Exec(ctx, "DELETE FROM files WHERE connection_id=$1", connectionID)
-		conn.Exec(ctx, "DELETE FROM connections WHERE id=$1", connectionID)
-		conn.Exec(ctx, "DELETE FROM users WHERE id=$1", userID)
-	})
 
 	scanner := service.NewConnectionScanner(conn)
 	err = cmd.ScanConnection(connectionID, scanner)
