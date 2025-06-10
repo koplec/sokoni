@@ -79,6 +79,24 @@ sudo apt-get install pandoc texlive-latex-base  # Ubuntu/Debian
 
 ## テスト実行
 
+### 全テスト実行
+
+```bash
+go test ./...
+```
+
+### 特定テストの実行
+
+```bash
+# 特定のテスト関数を実行
+go test -run TestScanConnectionSMB ./internal/service
+
+# 詳細出力
+go test -v ./internal/service
+```
+
+### NAS接続テスト
+
 `ScanConnection` の挙動を確認する統合テストを実行するには、まず `test.env.sample`
 を `test.env` としてコピーし、必要に応じて NAS(SMB) 接続用の環境変数を設定します。
 
@@ -89,9 +107,8 @@ export SOKONI_TEST_SMB_PATH=//nas/share
 export SOKONI_TEST_SMB_USER=myuser       # 任意
 export SOKONI_TEST_SMB_PASS=mypass       # 任意
 export SOKONI_TEST_SMB_OPTIONS=vers=3.0  # 任意
-
-# 通常のテスト実行（test.envを手動で読み込む場合）
-export $(cat test.env | xargs) && go test ./...
+SOKONI_TEST_SMB_EXPECTED_PDF_COUNT=1
+など
 
 # SMBテストのみ実行
 export $(cat test.env | xargs) && go test -run TestScanConnectionSMB -v ./internal/service
