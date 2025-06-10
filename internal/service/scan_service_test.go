@@ -2,6 +2,7 @@ package service_test
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -89,17 +90,30 @@ func TestScanConnectionSMB(t *testing.T) {
 		t.Fatal("DATABASE_URL environment variable is required for SMB test")
 	}
 
-	// Optional SMB credentials - warn if not set but don't fail
 	// Check required environment variables
 	smbPath := os.Getenv("SOKONI_TEST_SMB_PATH")
 	if smbPath == "" {
 		t.Skip("SOKONI_TEST_SMB_PATH not set")
 	}
 
+	// Optional SMB credentials - warn if not set but don't fail
 	smbUser := os.Getenv("SOKONI_TEST_SMB_USER")
 	smbPass := os.Getenv("SOKONI_TEST_SMB_PASS")
 	if smbUser == "" || smbPass == "" {
 		t.Logf("Warning: SOKONI_TEST_SMB_USER or SOKONI_TEST_SMB_PASS not set - SMB authentication may fail")
+	}
+
+	// Validate expected PDF count format if set
+	expectedPdfCountStr := os.Getenv("SOKONI_TEST_SMB_EXPECTED_PDF_COUNT")
+	if expectedPdfCountStr == "" {
+		t.Fatalf("SOKONI_TEST_SMB_EXPECTED_PDF_COUNT not set")
+	}
+	expectedPdfCount := 0
+	if _, err := fmt.Sscanf(expectedPdfCountStr, "%d", &expectedPdfCount); err != nil {
+		t.Fatalf("invalid SOKONI_TEST_SMB_EXPECTED_PDF_COUNT format: %v", err)
+	}
+	if expectedPdfCount < 0 {
+		t.Fatalf("SOKONI_TEST_SMB_EXPECTED_PDF_COUNT must be non-negative, got: %d", expectedPdfCount)
 	}
 
 	conn := testConn(t)
@@ -155,14 +169,29 @@ func TestScanConnectionSMB(t *testing.T) {
 		t.Fatalf("ScanConnection failed: %v", err)
 	}
 
-	var count int
-	err = conn.QueryRow(ctx, "SELECT COUNT(*) FROM files WHERE connection_id=$1", connectionID).Scan(&count)
+	var actualPdfCount int
+	err = conn.QueryRow(ctx, "SELECT COUNT(*) FROM files WHERE connection_id=$1", connectionID).Scan(&actualPdfCount)
 	if err != nil {
 		t.Fatalf("failed to query files: %v", err)
 	}
-	if count == 0 {
-		t.Logf("No files scanned (expected due to SMB authentication failure)")
+
+	// Check expected PDF count if environment variable is set
+	if expectedPdfCountStr != "" {
+		expectedPdfCount := 0
+		if _, err := fmt.Sscanf(expectedPdfCountStr, "%d", &expectedPdfCount); err != nil {
+			t.Fatalf("invalid SOKONI_TEST_SMB_EXPECTED_PDF_COUNT format: %v", err)
+		}
+		if actualPdfCount != expectedPdfCount {
+			t.Errorf("expected %d PDF files, but scanned %d files", expectedPdfCount, actualPdfCount)
+		} else {
+			t.Logf("Successfully scanned %d PDF files as expected", actualPdfCount)
+		}
 	} else {
-		t.Logf("Scanned %d files", count)
+		// Fallback to original behavior when expected count is not set
+		if actualPdfCount == 0 {
+			t.Logf("No PDF files scanned (expected due to SMB authentication failure)")
+		} else {
+			t.Logf("Scanned %d PDF files", actualPdfCount)
+		}
 	}
 }
