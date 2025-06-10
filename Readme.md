@@ -90,10 +90,16 @@ export SOKONI_TEST_SMB_USER=myuser       # 任意
 export SOKONI_TEST_SMB_PASS=mypass       # 任意
 export SOKONI_TEST_SMB_OPTIONS=vers=3.0  # 任意
 
-go test ./...
+# 通常のテスト実行（test.envを手動で読み込む場合）
+export $(cat test.env | xargs) && go test ./...
+
+# SMBテストのみ実行
+export $(cat test.env | xargs) && go test -run TestScanConnectionSMB -v ./internal/service
 ```
 
 `SOKONI_TEST_SMB_PATH` が未設定の場合、SMB を利用したテストはスキップされます。
+
+**注意**: `export $(cat test.env | xargs)` により `test.env` ファイル内の環境変数を現在のシェルセッションに読み込むことができます。
 
 ## API使用方法
 

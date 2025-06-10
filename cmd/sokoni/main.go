@@ -35,7 +35,10 @@ func main() {
 					log.Fatalf("invalid connection ID: %v", err)
 				}
 				withDB(func(conn *pgx.Conn) {
-					cmd.ScanConnection(connectionID, service.NewConnectionScanner(conn))
+					err := cmd.ScanConnection(connectionID, service.NewConnectionScanner(conn))
+					if err != nil {
+						log.Fatalf("scan failed: %v", err)
+					}
 				})
 			} else {
 				runScan()
