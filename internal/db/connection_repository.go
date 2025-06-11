@@ -117,6 +117,28 @@ func GetConnectionByID(ctx context.Context, conn *pgx.Conn, id int) (*Connection
 	return &c, nil
 }
 
+// GetConnection retrieves a connection by ID that belongs to the given user.
+// Returns pgx.ErrNoRows if no matching record is found.
+func GetConnection(ctx context.Context, conn *pgx.Conn, id int, userID int) (*Connection, error) {
+	query := `
+                SELECT id, name, base_path, remote_path, username, password, options,
+                       user_id, last_scan, scan_interval, auto_scan, created_at, updated_at
+                FROM connections
+                WHERE id = $1 AND user_id = $2
+        `
+
+	var c Connection
+	err := conn.QueryRow(ctx, query, id, userID).Scan(
+		&c.ID, &c.Name, &c.BasePath, &c.RemotePath, &c.Username, &c.Password, &c.Options,
+		&c.UserID, &c.LastScan, &c.ScanInterval, &c.AutoScan, &c.CreatedAt, &c.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &c, nil
+}
+
 func CreateConnection(ctx context.Context, conn *pgx.Conn, req CreateConnectionRequest) (*ConnectionResponse, error) {
 	scanInterval := 604800 // 1週間デフォルト
 	if req.ScanInterval != nil {

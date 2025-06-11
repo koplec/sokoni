@@ -29,17 +29,23 @@ func main() {
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
 		case "scan":
-			if len(os.Args) > 2 {
+			if len(os.Args) > 3 {
 				connectionID, err := strconv.Atoi(os.Args[2])
 				if err != nil {
 					log.Fatalf("invalid connection ID: %v", err)
 				}
+				userID, err := strconv.Atoi(os.Args[3])
+				if err != nil {
+					log.Fatalf("invalid user ID: %v", err)
+				}
 				withDB(func(conn *pgx.Conn) {
-					err := cmd.ScanConnection(connectionID, service.NewConnectionScanner(conn))
+					err := cmd.ScanConnection(connectionID, userID, service.NewConnectionScanner(conn))
 					if err != nil {
 						log.Fatalf("scan failed: %v", err)
 					}
 				})
+			} else if len(os.Args) > 2 {
+				log.Fatalf("usage: sokoni scan <connection_id> <user_id>")
 			} else {
 				runScan()
 			}
@@ -108,11 +114,11 @@ func runScheduler() {
 	defer conn.Close(ctx)
 
 	scanner := scheduler.NewScanner(conn)
-	
+
 	// Graceful shutdown
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	
+
 	go func() {
 		<-c
 		log.Println("Shutting down scheduler...")
@@ -139,18 +145,17 @@ func runScan() {
 	}
 }
 
-
 func showUsage() {
 	fmt.Println("Usage: sokoni [command]")
 	fmt.Println("Commands:")
 	fmt.Println("  api              Start REST API server (default)")
 	fmt.Println("  scheduler        Start background file scanner")
 	fmt.Println("  scan             Run one-time file scan")
-	fmt.Println("  scan <conn_id>   Scan specific connection")
+	fmt.Println("  scan <conn_id> <user_id>   Scan connection as user")
 	fmt.Println()
 	fmt.Println("Examples:")
 	fmt.Println("  ./sokoni api       # Start API on port 8080")
 	fmt.Println("  ./sokoni scheduler # Start background scanner")
 	fmt.Println("  ./sokoni scan      # Manual scan of /mnt/share")
-	fmt.Println("  ./sokoni scan 1    # Scan connection ID 1")
+	fmt.Println("  ./sokoni scan 1 42 # Scan connection 1 as user 42")
 }

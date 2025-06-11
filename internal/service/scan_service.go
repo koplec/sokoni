@@ -39,7 +39,7 @@ type ConnectionScanner func(ctx context.Context, connectionID int, userID int) e
 // 戻り値: ConnectionScanner (connectionID, userIDを受け取りスキャンを実行するスキャナー)
 func NewConnectionScanner(conn *pgx.Conn) ConnectionScanner {
 	return func(ctx context.Context, connectionID int, userID int) error {
-		connection, err := db.GetConnectionByID(ctx, conn, connectionID)
+		connection, err := db.GetConnection(ctx, conn, connectionID, userID)
 		if err != nil {
 			return fmt.Errorf("failed to get connection: %w", err)
 		}
