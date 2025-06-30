@@ -2,6 +2,7 @@ package service_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -38,17 +39,32 @@ func TestScanConnectionLocal(t *testing.T) {
 	// clean tables in case previous tests left data
 	conn.Exec(ctx, "DELETE FROM files")
 	conn.Exec(ctx, "DELETE FROM connections")
+	conn.Exec(ctx, "DELETE FROM users")
 
 	// create temp directory with a single pdf file
-	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "sample.pdf"), []byte("dummy"), 0644)
+	baseDir := t.TempDir()
+	remoteSub := "data"
+	remoteDir := filepath.Join(baseDir, remoteSub)
+	os.MkdirAll(remoteDir, 0755)
+	os.WriteFile(filepath.Join(remoteDir, "sample.pdf"), []byte("dummy"), 0644)
+
+	// create test user and connection
+	var userID int
+	err := conn.QueryRow(ctx, `
+                INSERT INTO users (username, email, password_hash)
+                VALUES ('local-user', 'local@example.com', 'x')
+                RETURNING id
+        `).Scan(&userID)
+	if err != nil {
+		t.Fatalf("failed to insert user: %v", err)
+	}
 
 	connectionID := 101
-	_, err := conn.Exec(ctx, `
-        INSERT INTO connections (id, name, base_path, remote_path)
-        VALUES ($1, 'test', $2, $2)
+	_, err = conn.Exec(ctx, `
+        INSERT INTO connections (id, name, base_path, remote_path, user_id)
+        VALUES ($1, 'test', $2, $3, $4)
         ON CONFLICT (id) DO NOTHING
-    `, connectionID, dir)
+    `, connectionID, baseDir, remoteSub, userID)
 	if err != nil {
 		t.Fatalf("failed to insert connection: %v", err)
 	}
@@ -56,10 +72,11 @@ func TestScanConnectionLocal(t *testing.T) {
 	t.Cleanup(func() {
 		conn.Exec(ctx, "DELETE FROM files WHERE connection_id=$1", connectionID)
 		conn.Exec(ctx, "DELETE FROM connections WHERE id=$1", connectionID)
+		conn.Exec(ctx, "DELETE FROM users WHERE id=$1", userID)
 	})
 
 	scanner := service.NewConnectionScanner(conn)
-	err = cmd.ScanConnection(connectionID, scanner)
+	err = cmd.ScanConnection(connectionID, userID, scanner)
 	if err != nil {
 		t.Fatalf("ScanConnection failed: %v", err)
 	}
@@ -91,10 +108,11 @@ func TestScanConnectionSMB(t *testing.T) {
 	}
 
 	// Check required environment variables
-	smbPath := os.Getenv("SOKONI_TEST_SMB_PATH")
-	if smbPath == "" {
-		t.Skip("SOKONI_TEST_SMB_PATH not set")
+	smbBase := os.Getenv("SOKONI_TEST_SMB_BASE_PATH")
+	if smbBase == "" {
+		t.Skip("SOKONI_TEST_SMB_BASE_PATH not set")
 	}
+	smbRemote := os.Getenv("SOKONI_TEST_SMB_REMOTE_PATH")
 
 	// Optional SMB credentials - warn if not set but don't fail
 	smbUser := os.Getenv("SOKONI_TEST_SMB_USER")
@@ -139,7 +157,7 @@ func TestScanConnectionSMB(t *testing.T) {
         INSERT INTO connections (id, name, base_path, remote_path, username, password, options, user_id)
         VALUES ($1, 'smb-test', $2, $3, $4, $5, $6, $7)
         ON CONFLICT (id) DO NOTHING
-    `, connectionID, smbPath, smbPath,
+    `, connectionID, smbBase, smbRemote,
 		stringPtr(os.Getenv("SOKONI_TEST_SMB_USER")),
 		stringPtr(os.Getenv("SOKONI_TEST_SMB_PASS")),
 		stringPtr(os.Getenv("SOKONI_TEST_SMB_OPTIONS")),
@@ -164,7 +182,7 @@ func TestScanConnectionSMB(t *testing.T) {
 	}
 
 	scanner := service.NewConnectionScanner(conn)
-	err = cmd.ScanConnection(connectionID, scanner)
+	err = cmd.ScanConnection(connectionID, userID, scanner)
 	if err != nil {
 		t.Fatalf("ScanConnection failed: %v", err)
 	}
@@ -193,5 +211,70 @@ func TestScanConnectionSMB(t *testing.T) {
 		} else {
 			t.Logf("Scanned %d PDF files", actualPdfCount)
 		}
+	}
+}
+
+func TestScanConnectionUnauthorized(t *testing.T) {
+	conn := testConn(t)
+	ctx := context.Background()
+
+	conn.Exec(ctx, "DELETE FROM files")
+	conn.Exec(ctx, "DELETE FROM connections")
+	conn.Exec(ctx, "DELETE FROM users")
+
+	// create two users
+	var user1, user2 int
+	err := conn.QueryRow(ctx, `
+                INSERT INTO users (username, email, password_hash)
+                VALUES ('owner', 'owner@example.com', 'x')
+                RETURNING id
+        `).Scan(&user1)
+	if err != nil {
+		t.Fatalf("failed to create user1: %v", err)
+	}
+	err = conn.QueryRow(ctx, `
+                INSERT INTO users (username, email, password_hash)
+                VALUES ('other', 'other@example.com', 'x')
+                RETURNING id
+        `).Scan(&user2)
+	if err != nil {
+		t.Fatalf("failed to create user2: %v", err)
+	}
+
+	// temp directory and connection owned by user1
+	baseDir := t.TempDir()
+	remoteSub := "private"
+	remoteDir := filepath.Join(baseDir, remoteSub)
+	os.MkdirAll(remoteDir, 0755)
+	os.WriteFile(filepath.Join(remoteDir, "sample.pdf"), []byte("dummy"), 0644)
+
+	connectionID := 103
+	_, err = conn.Exec(ctx, `
+                INSERT INTO connections (id, name, base_path, remote_path, user_id)
+                VALUES ($1, 'unauth', $2, $3, $4)
+        `, connectionID, baseDir, remoteSub, user1)
+	if err != nil {
+		t.Fatalf("failed to insert connection: %v", err)
+	}
+
+	t.Cleanup(func() {
+		conn.Exec(ctx, "DELETE FROM files WHERE connection_id=$1", connectionID)
+		conn.Exec(ctx, "DELETE FROM connections WHERE id=$1", connectionID)
+		conn.Exec(ctx, "DELETE FROM users WHERE id IN ($1,$2)", user1, user2)
+	})
+
+	scanner := service.NewConnectionScanner(conn)
+	err = cmd.ScanConnection(connectionID, user2, scanner)
+	if err == nil {
+		t.Fatalf("expected error for unauthorized user")
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var count int
+	conn.QueryRow(ctx, "SELECT COUNT(*) FROM files WHERE connection_id=$1", connectionID).Scan(&count)
+	if count != 0 {
+		t.Errorf("expected no files scanned, got %d", count)
 	}
 }

@@ -84,27 +84,31 @@ func scanWith(root string, handle func(model.FileInfo) error) error {
 }
 
 func ScanConnectionWith(connection *db.Connection, handle func(model.FileInfo) error) error {
-	// ローカルパスの場合は既存のscanWithを使用
-	if !strings.HasPrefix(connection.RemotePath, "//") {
-		return scanWith(connection.BasePath, handle)
+	// SMBパスかどうかはBasePathで判定
+	if strings.HasPrefix(connection.BasePath, "//") {
+		return scanSMBWith(connection, handle)
 	}
 
-	// SMB/CIFSパスの場合はSMB接続
-	return scanSMBWith(connection, handle)
+	// ローカルパスの場合は base_path と remote_path を結合
+	root := connection.BasePath
+	if connection.RemotePath != "" {
+		root = filepath.Join(connection.BasePath, connection.RemotePath)
+	}
+	return scanWith(root, handle)
 }
 
 func scanSMBWith(connection *db.Connection, handle func(model.FileInfo) error) error {
-	// SMBパスを解析: //server/share/path
-	parts := strings.Split(strings.TrimPrefix(connection.RemotePath, "//"), "/")
+	// SMB接続情報を解析: BasePath="//server/share", RemotePath="dir"
+	parts := strings.Split(strings.TrimPrefix(connection.BasePath, "//"), "/")
 	if len(parts) < 2 {
-		return fmt.Errorf("invalid SMB path: %s", connection.RemotePath)
+		return fmt.Errorf("invalid SMB base path: %s", connection.BasePath)
 	}
 
 	server := parts[0]
 	share := parts[1]
-	remotePath := "."
-	if len(parts) > 2 {
-		remotePath = strings.Join(parts[2:], "/")
+	remotePath := strings.TrimPrefix(connection.RemotePath, "/")
+	if remotePath == "" {
+		remotePath = "."
 	}
 
 	// SMB接続を確立

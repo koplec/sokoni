@@ -99,22 +99,24 @@ go test -v ./internal/service
 
 `ScanConnection` の挙動を確認する統合テストを実行するには、まず `test.env.sample`
 を `test.env` としてコピーし、必要に応じて NAS(SMB) 接続用の環境変数を設定します。
+`ScanConnection` は **connection ID** と **user ID** を受け取るため、テストでは
+事前にユーザーを作成してその ID を渡します。
 
 ```bash
 cp test.env.sample test.env
 # NAS 環境に合わせて設定 (任意)
-export SOKONI_TEST_SMB_PATH=//nas/share
+export SOKONI_TEST_SMB_BASE_PATH=//nas/share   # SMBサーバーURI
+export SOKONI_TEST_SMB_REMOTE_PATH=docs        # 接続後に参照するフォルダ
 export SOKONI_TEST_SMB_USER=myuser       # 任意
 export SOKONI_TEST_SMB_PASS=mypass       # 任意
 export SOKONI_TEST_SMB_OPTIONS=vers=3.0  # 任意
 SOKONI_TEST_SMB_EXPECTED_PDF_COUNT=1
-など
 
 # SMBテストのみ実行
 export $(cat test.env | xargs) && go test -run TestScanConnectionSMB -v ./internal/service
 ```
 
-`SOKONI_TEST_SMB_PATH` が未設定の場合、SMB を利用したテストはスキップされます。
+`SOKONI_TEST_SMB_BASE_PATH` が未設定の場合、SMB を利用したテストはスキップされます。
 
 **注意**: `export $(cat test.env | xargs)` により `test.env` ファイル内の環境変数を現在のシェルセッションに読み込むことができます。
 
