@@ -3,6 +3,7 @@ package scheduler
 import (
 	"context"
 	"log"
+	"os"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -12,24 +13,32 @@ import (
 )
 
 type Scanner struct {
-	conn *pgx.Conn
-	ctx  context.Context
-	done chan struct{}
+	conn     *pgx.Conn
+	ctx      context.Context
+	done     chan struct{}
+	interval time.Duration
 }
 
 func NewScanner(conn *pgx.Conn) *Scanner {
+	interval := 6 * time.Hour
+	if v := os.Getenv("SOKONI_SCHEDULER_INTERVAL"); v != "" {
+		if d, err := time.ParseDuration(v); err == nil {
+			interval = d
+		}
+	}
 	return &Scanner{
-		conn: conn,
-		ctx:  context.Background(),
-		done: make(chan struct{}),
+		conn:     conn,
+		ctx:      context.Background(),
+		done:     make(chan struct{}),
+		interval: interval,
 	}
 }
 
 func (s *Scanner) Start() {
-	ticker := time.NewTicker(6 * time.Hour) // 6時間ごとにチェック
+	ticker := time.NewTicker(s.interval)
 	defer ticker.Stop()
 
-	log.Println("Scanner started (checking every 6 hours)")
+	log.Printf("Scanner started (checking every %s)", s.interval)
 
 	// 起動時に1回チェック
 	s.scanDueConnections()
@@ -65,14 +74,14 @@ func (s *Scanner) scanDueConnections() {
 
 	for _, conn := range connections {
 		log.Printf("Starting scan for connection: %s (ID: %d, Remote: %s)", conn.Name, conn.ID, conn.RemotePath)
-		
+
 		fileCount := 0
 		err := s.scanConnection(conn, &fileCount)
 		if err != nil {
 			log.Printf("Error scanning connection %s: %v", conn.Name, err)
 			continue
 		}
-		
+
 		err = s.updateLastScan(conn.ID)
 		if err != nil {
 			log.Printf("Error updating last_scan for connection %s: %v", conn.Name, err)
@@ -82,7 +91,6 @@ func (s *Scanner) scanDueConnections() {
 	}
 }
 
-
 func (s *Scanner) getDueConnections() ([]*db.Connection, error) {
 	query := `
 		SELECT id, name, base_path, remote_path, username, password, options,
@@ -91,7 +99,7 @@ func (s *Scanner) getDueConnections() ([]*db.Connection, error) {
 		WHERE auto_scan = true 
 		AND (last_scan IS NULL OR last_scan + (scan_interval || ' seconds')::interval < now())
 	`
-	
+
 	rows, err := s.conn.Query(s.ctx, query)
 	if err != nil {
 		return nil, err
@@ -116,14 +124,14 @@ func (s *Scanner) getDueConnections() ([]*db.Connection, error) {
 
 func (s *Scanner) scanConnection(conn *db.Connection, fileCount *int) error {
 	return collector.ScanConnectionWith(conn, func(fileInfo model.FileInfo) error {
-		*fileCount++
+		(*fileCount)++
 		return db.InsertFile(s.ctx, s.conn, conn.ID, fileInfo)
 	})
 }
 
 func (s *Scanner) updateLastScan(connectionID int) error {
-	_, err := s.conn.Exec(s.ctx, 
-		"UPDATE connections SET last_scan = now() WHERE id = $1", 
+	_, err := s.conn.Exec(s.ctx,
+		"UPDATE connections SET last_scan = now() WHERE id = $1",
 		connectionID)
 	return err
 }

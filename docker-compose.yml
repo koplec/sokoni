@@ -15,5 +15,14 @@ services:
     volumes:
       - sokoni_pgdata:/var/lib/postgresql/data
 
+  sokoni:
+    build: .
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=postgres://sokoni:sokoni@db:5432/sokoni?sslmode=disable
+      - TZ=Asia/Tokyo
+    command: ["scheduler"]
+
 volumes:
   sokoni_pgdata:

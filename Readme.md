@@ -77,6 +77,17 @@ sudo apt-get install pandoc texlive-latex-base  # Ubuntu/Debian
 ./sokoni scan 6
 ```
 
+## 自動スキャン(Scheduler)
+
+接続情報で `auto_scan` を有効にすると、スケジューラーが定期的に\
+NAS のパスを巡回して PDF ファイルを登録します。デフォルトでは\
+6 時間間隔ですが、環境変数 `SOKONI_SCHEDULER_INTERVAL` に Go の\
+`time.ParseDuration` 形式で値を指定することで変更できます。
+
+```bash
+./sokoni scheduler
+```
+
 ## テスト実行
 
 ### 全テスト実行
@@ -197,4 +208,46 @@ docker volume ls
 docker volume rm sokoni_sokoni_pgadata
 docker compose up -d
 migrate -path db/migrations -database "$DATABASE_URL" up
+```
+
+## Docker コンテナでの実行
+
+アプリケーション用の Dockerfile を追加しました。開発時は `docker compose up`
+だけでデータベース(`db`)とアプリ(`sokoni`)が同時に起動します。デプロイ環境
+ではそれぞれのコンテナを個別に準備してください。
+
+### イメージビルド
+
+```bash
+docker compose build sokoni
+```
+
+### 起動
+
+```bash
+docker compose up -d
+```
+
+`sokoni` サービスはデフォルトで `./sokoni scheduler` を実行します。API を起動
+する場合は以下のようにコマンドを指定します。
+
+```bash
+docker compose run --rm sokoni api
+```
+
+環境変数 `DATABASE_URL` は自動で
+`postgres://sokoni:sokoni@db:5432/sokoni?sslmode=disable` に設定されています。
+必要に応じて `env_file` や `.env` を用いて上書きしてください。
+
+### アプリ単体のデプロイ
+
+データベースが既に別環境で稼働している場合は、アプリケーションイメージ
+だけをビルド・デプロイします。
+
+```bash
+# イメージ作成
+docker build -t sokoni-app .
+
+# データベースURLを指定して実行
+docker run -e DATABASE_URL=postgres://USER:PASS@dbhost:5432/sokoni?sslmode=disable sokoni-app scheduler
 ```
