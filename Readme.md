@@ -251,3 +251,20 @@ docker build -t sokoni-app .
 # データベースURLを指定して実行
 docker run -e DATABASE_URL=postgres://USER:PASS@dbhost:5432/sokoni?sslmode=disable sokoni-app scheduler
 ```
+## Dockerでの起動
+
+Sokoni 用 Dockerfile は単一で、起動時のサブコマンドにより動作モードを切り替えられます。
+`docker compose run --rm sokoni <command>` を使って `scheduler`（デフォルト）、`api`、`scan` の各モードを実行できます。
+
+```bash
+# API サーバー起動 -> 確認済み
+docker compose run --rm sokoni api
+
+# スケジューラ起動
+docker compose run --rm sokoni scheduler
+
+# connection ID と user ID を指定したスキャン
+docker compose run --rm sokoni scan <connection_id> <user_id>
+```
+
+デプロイ時にモードごとに専用の Dockerfile を用意しても構いませんが、通常は上記のようにコマンド指定だけで切り替えられます。
