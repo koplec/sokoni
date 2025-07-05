@@ -35,7 +35,20 @@ go build ./cmd/sokoni
 
 ```bash
 # REST API サーバー起動 (ポート8080)
-./sokoni
+./sokoni api
+
+## 例えば、以下のような動作が確認できる
+$ curl localhost:8080/health
+OK
+
+$ curl localhost:8080/search?q=hoge
+null
+
+$ curl localhost:8080/connections
+null
+
+# スケジューラ起動
+./sokoni scheduler
 
 # ファイルスキャン実行
 ./sokoni scan
