@@ -312,5 +312,5 @@ func (uc *UserCommand) showUsage() error {
 	fmt.Println("  sokoni user update 1 --email newemail@example.com")
 	fmt.Println("  sokoni user delete 1")
 	
-	return nil
+	return fmt.Errorf("invalid command or missing arguments")
 }
