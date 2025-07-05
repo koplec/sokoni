@@ -61,6 +61,24 @@ null
 #### ユーザーとコネクションを追加して、そのコネクションをもとに、scanを実行する
 ##### 1. ユーザーを追加して、userのidを確認する
 
+```bash
+# ユーザーを作成
+./sokoni user create --username john --email john@example.com --password password123
+
+# 結果例:
+# User created successfully:
+#   ID: 24
+#   Username: john
+#   Email: john@example.com
+#   Created: 2025-07-05T23:45:12+09:00
+
+# ユーザーIDを確認
+./sokoni user show 24
+
+# または全ユーザー一覧で確認
+./sokoni user list
+```
+
 ##### 2. 1に追加したユーザに、コネクションを追加する
 
 ##### 3. 2で追加したコネクションをもとに、スキャンを実行する
