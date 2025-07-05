@@ -53,6 +53,8 @@ func main() {
 			runScheduler()
 		case "api":
 			runAPI()
+		case "user":
+			runUserCommand()
 		default:
 			showUsage()
 		}
@@ -145,6 +147,26 @@ func runScan() {
 	}
 }
 
+func runUserCommand() {
+	if len(os.Args) < 3 {
+		showUserUsage()
+		return
+	}
+
+	ctx := context.Background()
+	conn, err := db.Connect(ctx)
+	if err != nil {
+		log.Fatalf("failed to connect to database: %v", err)
+	}
+	defer conn.Close(ctx)
+
+	userCmd := cmd.NewUserCommand(conn)
+	err = userCmd.Execute(ctx, os.Args[2:])
+	if err != nil {
+		log.Fatalf("user command failed: %v", err)
+	}
+}
+
 func showUsage() {
 	fmt.Println("Usage: sokoni [command]")
 	fmt.Println("Commands:")
@@ -152,10 +174,28 @@ func showUsage() {
 	fmt.Println("  scheduler        Start background file scanner")
 	fmt.Println("  scan             Run one-time file scan")
 	fmt.Println("  scan <conn_id> <user_id>   Scan connection as user")
+	fmt.Println("  user             User management commands")
 	fmt.Println()
 	fmt.Println("Examples:")
 	fmt.Println("  ./sokoni api       # Start API on port 8080")
 	fmt.Println("  ./sokoni scheduler # Start background scanner")
 	fmt.Println("  ./sokoni scan      # Manual scan of /mnt/share")
 	fmt.Println("  ./sokoni scan 1 42 # Scan connection 1 as user 42")
+	fmt.Println("  ./sokoni user list # List all users")
+}
+
+func showUserUsage() {
+	fmt.Println("Usage: sokoni user <command> [options]")
+	fmt.Println()
+	fmt.Println("Commands:")
+	fmt.Println("  create    Create a new user")
+	fmt.Println("  list      List all users")
+	fmt.Println("  show      Show user details")
+	fmt.Println("  update    Update user information")
+	fmt.Println("  delete    Delete a user")
+	fmt.Println()
+	fmt.Println("Examples:")
+	fmt.Println("  ./sokoni user create --username john --email john@example.com")
+	fmt.Println("  ./sokoni user list")
+	fmt.Println("  ./sokoni user show 1")
 }
