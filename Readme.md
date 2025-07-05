@@ -115,6 +115,48 @@ curl "http://localhost:8080/connections?user_id=24"
 
 ##### 3. 2で追加したコネクションをもとに、スキャンを実行する
 
+```bash
+# コネクションID: 5、ユーザーID: 24でスキャン実行
+./sokoni scan 5 24
+
+# 結果例:
+# Scanning connection: My NAS Share (/mnt/mynnas)
+# Processed 100 files...
+# Successfully stored 150 files for connection My NAS Share
+
+# スキャン結果を検索で確認
+curl "http://localhost:8080/search?q=invoice"
+```
+
+**注意**: スキャンが成功するために、以下の条件を満たしている必要があります：
+- 指定したユーザーIDとコネクションIDが存在し、そのユーザーがそのコネクションを所有している
+- コネクションのパス（`base_path`）が実際にアクセス可能である
+- SMBコネクションの場合、認証情報が正しく設定されている
+
+テスト用には以下のようなローカルディレクトリスキャンも可能です：
+
+```bash
+# テスト用ディレクトリとPDFファイルを作成
+mkdir -p /tmp/test_pdfs
+echo "test content" > /tmp/test_pdfs/test1.pdf
+echo "test content" > /tmp/test_pdfs/test2.pdf
+
+# ローカルディレクトリ用のコネクションを作成
+curl -X POST http://localhost:8080/connections \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Test Local Directory",
+    "base_path": "/tmp/test_pdfs",
+    "remote_path": "",
+    "user_id": 24,
+    "scan_interval": 86400,
+    "auto_scan": false
+  }'
+
+# 作成されたコネクションID（例：6）でスキャン実行
+./sokoni scan 6 24
+```
+
 ## テストデータのセットアップ
 
 ### 1. サンプルConnectionの挿入
