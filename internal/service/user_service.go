@@ -280,6 +280,9 @@ func (s *UserService) validatePassword(password string) error {
 }
 
 // hashPassword hashes a password using bcrypt
+// bcryptは内部で自動的にランダムなsaltを生成し、ハッシュ値に埋め込んで保存します。
+// そのため、別途saltを管理する必要はありません。
+// 生成されるハッシュ値の形式: $2a$12$saltxxxxxxxxxxxxxxxxxxxxxxhashedpasswordxxxxxxx
 func (s *UserService) hashPassword(password string) (string, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
