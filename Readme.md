@@ -81,6 +81,38 @@ null
 
 ##### 2. 1に追加したユーザに、コネクションを追加する
 
+```bash
+# APIサーバーを起動（別ターミナルで）
+./sokoni api
+
+# コネクションを追加（ユーザーID: 24の場合）
+curl -X POST http://localhost:8080/connections \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "My NAS Share",
+    "base_path": "/mnt/mynnas",
+    "remote_path": "//192.168.1.100/documents",
+    "username": "nasuser",
+    "password": "naspass",
+    "options": "vers=3.0",
+    "user_id": 24,
+    "scan_interval": 86400,
+    "auto_scan": true
+  }'
+
+# 結果例:
+# {
+#   "id": 5,
+#   "name": "My NAS Share",
+#   "base_path": "/mnt/mynnas",
+#   ...
+#   "user_id": 24
+# }
+
+# コネクション一覧で確認（ユーザーID: 24の場合）
+curl "http://localhost:8080/connections?user_id=24"
+```
+
 ##### 3. 2で追加したコネクションをもとに、スキャンを実行する
 
 ## テストデータのセットアップ

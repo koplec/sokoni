@@ -52,8 +52,30 @@ func (a *API) GetConnections(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: 認証実装後にユーザーIDを取得
-	userID := -1 // 仮のユーザーID（開発用）
+	// user_id をクエリパラメータから取得
+	userIDStr := r.URL.Query().Get("user_id")
+	if userIDStr == "" {
+		http.Error(w, "user_id query parameter is required", http.StatusBadRequest)
+		return
+	}
+
+	userID, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		http.Error(w, "Invalid user_id", http.StatusBadRequest)
+		return
+	}
+
+	// ユーザーの存在確認
+	_, err = db.GetUserByID(context.Background(), a.conn, userID)
+	if err != nil {
+		if err == db.ErrUserNotFound {
+			http.Error(w, "User not found", http.StatusBadRequest)
+			return
+		}
+		log.Printf("Error checking user existence: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
 
 	connections, err := db.GetConnectionsByUserID(context.Background(), a.conn, userID)
 	if err != nil {
@@ -81,8 +103,23 @@ func (a *API) CreateConnection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: 認証実装後にユーザーIDを取得
-	req.UserID = -1 // 仮のユーザーID（開発用）
+	// user_id が指定されているかチェック
+	if req.UserID == 0 {
+		http.Error(w, "user_id is required", http.StatusBadRequest)
+		return
+	}
+
+	// ユーザーの存在確認
+	_, err := db.GetUserByID(context.Background(), a.conn, req.UserID)
+	if err != nil {
+		if err == db.ErrUserNotFound {
+			http.Error(w, "User not found", http.StatusBadRequest)
+			return
+		}
+		log.Printf("Error checking user existence: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
 
 	connection, err := db.CreateConnection(context.Background(), a.conn, req)
 	if err != nil {
